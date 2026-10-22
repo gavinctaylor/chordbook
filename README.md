@@ -8,7 +8,7 @@ Upload this folder's contents to the root of a public repository named chordbook
 
 ## Google setup before public launch
 
-The included google-config.js is intentionally blank pending public-site configuration. These are browser-visible identifiers, not an OAuth client secret. Restrict the key to the final site and Google's Picker origin before sharing.
+The included google-config.js contains the public browser configuration for Chordbook. These are browser-visible identifiers, not an OAuth client secret. Restrict the key to the final site and Google's Picker origin before sharing.
 
 Once GitHub provides the site address:
 - Add its origin (https://YOUR-USERNAME.github.io, without the repository path) to the OAuth client's Authorized JavaScript origins.
