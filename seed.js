@@ -1,0 +1,1 @@
+window.STARTER_LIBRARY = [];

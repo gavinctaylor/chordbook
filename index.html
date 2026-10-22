@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121921"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Chordbook">
+<title>Chordbook</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121921'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Arial' font-size='44' fill='%237de1c2'%3E♯%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css"><script src="seed.js" defer></script><script src="csv.js" defer></script><script src="google-config.js" defer></script><script src="google-sheets.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<div class="app">
+<header><div class="brand"><span class="mark" aria-hidden="true">♯</span><h1>Chordbook</h1></div><button id="import" class="secondary">Import library</button><input type="file" id="file" accept=".csv,text/csv" hidden></header>
+<aside id="picker-recovery" hidden><span>Google chooser stuck? Close it, then use Sign in again. If the cookie error persists, try opening Chordbook in Safari.</span><button id="close-picker">Close Google chooser</button></aside><div id="app-update" hidden><p>A new app version is ready. Your saved songs will be kept.</p><button id="reload-app">Load updated app</button></div><main>
+<section class="sync-panel" aria-label="Google Sheets"><div><button id="google-update">Connect Google Sheets</button><button id="google-signin" class="secondary">Sign in again</button><button id="google-change" class="secondary" hidden>Change sheet</button></div><p id="google-source">Connect your sheet once, then update here while online.</p></section>
+<section id="welcome" class="welcome"><h2>Your songs, ready to play.</h2><p>Connect your own Google Sheet above, or import a CSV. Your library is saved in this browser for offline use.</p><p>Use the headings <strong>Artist · Song · Key · Chords</strong>, with one song per row. Key is optional.</p><a href="template.csv" download>Download a blank sheet template</a></section><section class="picker" aria-label="Choose artist"><div><label for="artist">ARTIST</label><select id="artist"></select></div><p id="library-count"></p></section>
+<div class="section-heading"><h2 id="artist-heading"></h2><span id="song-count"></span></div>
+<div class="reading-layout"><div id="songs"></div><aside class="size-control" aria-label="Chord text size"><label for="chord-size">Text<br>size</label><span aria-hidden="true">A+</span><input id="chord-size" type="range" min="16" max="48" step="1" value="27" orient="vertical"><span aria-hidden="true">A−</span><output id="chord-size-value" for="chord-size">27</output></aside></div>
+</main>
+<footer><span id="offline" role="status">Preparing offline access…</span><span id="updated">No library imported</span><span>Public version 1</span><a href="privacy.html">Privacy</a></footer>
+<p id="message" role="status" hidden></p>
+</div>
+<dialog id="confirm"><form method="dialog"><p class="eyebrow">UPDATE LIBRARY</p><h2>Replace your song library?</h2><p id="import-summary"></p><p>The imported sheet replaces every artist and song currently saved on this device. Keep your original sheet as your backup.</p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button id="replace" value="replace">Replace library</button></div></form></dialog>
+<dialog id="tabs"><form method="dialog"><h2>Choose a worksheet</h2><p>Select the tab containing Artist, Song and Chords.</p><label for="worksheet">Worksheet</label><select id="worksheet"></select><div class="actions"><button value="cancel" class="secondary">Cancel</button><button value="choose">Use worksheet</button></div></form></dialog>
+</body></html>
