@@ -187,7 +187,7 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v3')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v4')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
@@ -213,7 +213,7 @@ async function commitLibrary(value){
 }
 function previewLyrics(value){
   const report=LyricsLibrary.match(value.lyricsLibrary.entries,value.songs);
-  if(report.ambiguous.length)throw Error('Ambiguous lyrics matches: '+report.ambiguous.join('; ')+'. Use one heading per song and unique artist/song names in the Sheet.');
+  if(report.ambiguous.length)throw Error('Ambiguous lyrics matches: '+report.ambiguous.join('; ')+'. Use one lyrics heading per artist/song. Different keys can share that heading; check for conflicting artist/song names.');
   if(!report.bySong.size)throw Error('No lyrics matched your song library. Use Heading 1 lines in the form Artist — Song, matching the Sheet, with lyrics beneath. Your saved library is unchanged.');
   pendingLyrics=value;
   $('lyrics-summary').textContent=value.lyricsLibrary.source.name+': '+report.bySong.size+' of '+value.songs.length+' songs have matching lyrics. All will be available offline.';

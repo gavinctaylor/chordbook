@@ -27,12 +27,13 @@ window.LyricsLibrary=(()=>{
     for(const entry of entries||[]){
       const ids=index.get(normalize(entry.heading));
       if(!ids?.size){unmatched.push(entry.heading);continue;}
-      if(ids.size!==1){ambiguous.push(entry.heading);continue;}
-      const id=[...ids][0];
-      if(used.has(id)){bySong.delete(id);ambiguous.push(entry.heading);continue;}
-      used.add(id);
+      // Different keys of the same artist/song share one lyrics entry.
+      const identities=new Set([...ids].map(id=>JSON.stringify([normalize(songs[id].artist),normalize(songs[id].song)])));
+      if(identities.size!==1){ambiguous.push(entry.heading);continue;}
+      if([...ids].some(id=>used.has(id))){for(const id of ids)bySong.delete(id);ambiguous.push(entry.heading);continue;}
+      for(const id of ids)used.add(id);
       if(!entry.text.trim()){empty.push(entry.heading);continue;}
-      bySong.set(id,entry.text);
+      for(const id of ids)bySong.set(id,entry.text);
     }
     return {bySong,unmatched,empty,ambiguous};
   }
