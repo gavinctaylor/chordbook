@@ -28,15 +28,15 @@ window.SheetsConnection=(()=>{
     rejectAuth=reject;
     client.requestAccessToken({prompt:force?'select_account consent':'select_account'});
   });}
-  function pick(){return new Promise((resolve,reject)=>{
+  function pick(kind='sheet'){return new Promise((resolve,reject)=>{
     let picker;
     const finish=value=>{cancelPicker=null;if(picker)picker.dispose();window.dispatchEvent(new Event("pickerclosed"));resolve(value);};
     cancelPicker=()=>finish(null);
     try{picker=new google.picker.PickerBuilder()
-      .addView(new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS).setMode(google.picker.DocsViewMode.LIST))
+      .addView(new google.picker.DocsView(kind==='lyrics'?google.picker.ViewId.DOCUMENTS:google.picker.ViewId.SPREADSHEETS).setMode(google.picker.DocsViewMode.LIST))
       .setOAuthToken(token).setDeveloperKey(GOOGLE_CONFIG.apiKey).setAppId(GOOGLE_CONFIG.projectNumber).setOrigin(location.origin)
-      .setTitle('Choose your chord sheet').setCallback(data=>{
-        if(data.action===google.picker.Action.PICKED){const doc=data.docs[0];finish({spreadsheetId:doc.id,name:doc.name});}
+      .setTitle(kind==='lyrics'?'Choose your lyrics document':'Choose your chord sheet').setCallback(data=>{
+        if(data.action===google.picker.Action.PICKED){const doc=data.docs[0];finish(kind==='lyrics'?{documentId:doc.id,name:doc.name}:{spreadsheetId:doc.id,name:doc.name});}
         else if(data.action===google.picker.Action.CANCEL){finish(null);}
       }).build();picker.setVisible(true);window.dispatchEvent(new Event("pickeropened"));
     }catch(e){cancelPicker=null;window.dispatchEvent(new Event('pickerclosed'));reject(Error('The Google Drive chooser could not open. Use Sign in again, then retry.'));}
@@ -68,5 +68,21 @@ window.SheetsConnection=(()=>{
     return {songs:readWorksheet(values.values,sheet.properties.title),source:{...source,name:meta.properties.title,tab:sheet.properties.title}};
   }
   function readWorksheet(rows,title){try{return fromRows(rows);}catch(e){throw Error('Worksheet “'+title+'”: '+e.message);}}
-  return {cancelPicker:()=>{if(cancelPicker)cancelPicker();},configured,prepare,ready:()=>Boolean(client),authorize,pick,metadata,download,fromRows};
+  async function downloadLyrics(source){
+    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+    try{
+      const response=await fetch('https://docs.googleapis.com/v1/documents/'+encodeURIComponent(source.documentId)+'?includeTabsContent=true&suggestionsViewMode=PREVIEW_WITHOUT_SUGGESTIONS',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller.signal});
+      if(response.status===401){token='';expires=0;throw Error('Google sign-in expired. Use Sign in again, then retry.');}
+      if(!response.ok){
+        const error=await response.json().catch(()=>({}));
+        if((error.error?.details||[]).some(d=>d.reason==='SERVICE_DISABLED'))throw Error('Enable Google Docs API in your Chordbook Google Cloud project, wait a few minutes, then try again.');
+        if(response.status===403||response.status===404)throw Error('Google could not read this lyrics document. Check that Google Docs API is enabled, sign in with the correct account, and choose Change lyrics document to grant access.');
+        throw Error('Google could not download the lyrics. Try again later.');
+      }
+      const doc=await response.json();
+      return {entries:LyricsLibrary.parseDocument(doc),source:{...source,name:doc.title||source.name},importedAt:new Date().toISOString()};
+    }catch(e){if(e.name==='AbortError'||e instanceof TypeError)throw Error('The lyrics download failed. Check your internet connection and try again.');throw e;}
+    finally{clearTimeout(timeout);}
+  }
+  return {cancelPicker:()=>{if(cancelPicker)cancelPicker();},configured,prepare,ready:()=>Boolean(client),authorize,pick,metadata,download,downloadLyrics,fromRows};
 })();
