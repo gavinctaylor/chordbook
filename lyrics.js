@@ -17,7 +17,7 @@ window.LyricsLibrary=(()=>{
     }}
     function tab(t){finish();content(t.documentTab?.body?.content);finish();for(const child of t.childTabs||[])tab(child);}
     if(doc.tabs?.length)doc.tabs.forEach(tab);else{content(doc.body?.content);finish();}
-    if(!headingCount)throw Error('No Heading 1 song headings were found. In Google Docs, use Heading 1 for each Artist — Song title in the document body, not the page header.');
+    if(!headingCount)throw Error('No Heading 1 song headings were found. In Word or Google Docs, use Heading 1 for each Artist — Song title in the document body, not the page header.');
     const seen=new Set();for(const entry of entries){const key=normalize(entry.heading);if(seen.has(key))throw Error('Duplicate lyrics heading: “'+entry.heading+'”. Give each song one Heading 1.');seen.add(key);}
     return entries;
   }

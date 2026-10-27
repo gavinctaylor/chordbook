@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 const storageNamespace='chordbook:'+new URL('./',location.href).pathname;
 const order=new Intl.Collator('en',{sensitivity:'base',numeric:true});
-let library=window.STARTER_LIBRARY,db,pending=null,source=null,pendingSource=null,syncBusy=false,lyricsLibrary=null,pendingLyrics=null; 
+let library=window.STARTER_LIBRARY,db,pending=null,source=null,pendingSource=null,syncBusy=false,lyricsLibrary=null,pendingLyrics=null,chordFileName=null,pendingChordFileName=null; 
 function note(text){$('message').textContent=text;$('message').hidden=false;}
 function artists(){return [...new Set(library.map(s=>s.artist))].sort(order.compare);}
 function renderLibrary(preferred){
@@ -69,26 +69,28 @@ $('artist').addEventListener('change',renderSongs);
 $('import').addEventListener('click',()=>$('file').click());
 $('file').addEventListener('change',async event=>{
   const file=event.target.files[0];event.target.value='';if(!file)return;
+  if(syncBusy||$('confirm').open||$('lyrics-confirm').open)return;
   try{
-    if(syncBusy||$('confirm').open||$('lyrics-confirm').open)return;
     if(!db)throw Error('Device storage is unavailable. Reopen the app before importing.');
     if(file.size>2*1024*1024)throw Error('Please use a CSV smaller than 2 MB.');
-    pending=parseLibrary(await file.text());pendingSource=null;
+    syncBusy=true;renderSource();
+    pending=parseLibrary(await file.text());pendingSource=null;pendingChordFileName=file.name;
     $('import-summary').textContent=`${pending.length} songs by ${new Set(pending.map(s=>s.artist)).size} artists from ${file.name}.`;
     $('confirm').showModal();renderSource();
-  }catch(error){pending=null;note(error.message);}
+  }catch(error){pending=null;pendingChordFileName=null;note(error.message);}
+  finally{syncBusy=false;renderSource();}
 });
 $('replace').addEventListener('click',async event=>{
-  event.preventDefault();if(!pending)return;
-  $('replace').disabled=true;
+  event.preventDefault();if(!pending||syncBusy)return;
+  syncBusy=true;for(const button of $('confirm').querySelectorAll('button'))button.disabled=true;renderSource();
   try{
-    const value={songs:pending,source:pendingSource,lyricsLibrary,importedAt:new Date().toISOString()};
+    const value={songs:pending,source:pendingSource,chordFileName:pendingChordFileName,lyricsLibrary,importedAt:new Date().toISOString()};
     await saveLibrary(value);
-    const preferred=$('artist').value;library=value.songs;source=value.source;pending=null;pendingSource=null;renderLibrary(preferred);updated(value.importedAt);renderSource();
+    const preferred=$('artist').value;library=value.songs;source=value.source;chordFileName=value.chordFileName||null;pending=null;pendingSource=null;pendingChordFileName=null;renderLibrary(preferred);updated(value.importedAt);renderSource();
     $('confirm').close();note('Library saved on this device.');
     if(navigator.storage?.persist)navigator.storage.persist().catch(()=>{});
   }catch(error){$('confirm').close();note('The new library could not be saved. Your previous library is unchanged.');}
-  finally{$('replace').disabled=false;}
+  finally{syncBusy=false;for(const button of $('confirm').querySelectorAll('button'))button.disabled=false;renderSource();}
 });
 async function offlineSetup(){
   if(!('serviceWorker' in navigator)||!window.isSecureContext){$('offline').textContent='Preview only · offline installation needs a secure web address';return;}
@@ -105,21 +107,23 @@ async function offlineSetup(){
 }
 (async()=>{
   renderLibrary();$('import').disabled=true;
-  try{db=await openDatabase();const saved=await readSaved();if(saved?.songs?.length){library=saved.songs;source=saved.source||null;lyricsLibrary=saved.lyricsLibrary||null;renderLibrary();updated(saved.importedAt);}}
+  try{db=await openDatabase();const saved=await readSaved();if(saved?.songs?.length){library=saved.songs;source=saved.source||null;lyricsLibrary=saved.lyricsLibrary||null;chordFileName=saved.chordFileName||null;renderLibrary();updated(saved.importedAt);}}
   catch(error){note('Saved library could not be opened. Imports are unavailable until device storage works.');}
-  $('import').disabled=!db;renderSource();offlineSetup();if(SheetsConnection.configured()&&navigator.onLine)SheetsConnection.prepare().catch(()=>{});
+  $('import').disabled=!db;renderSource();offlineSetup();if((source||hasGoogleLyrics())&&SheetsConnection.configured()&&navigator.onLine)SheetsConnection.prepare().catch(()=>{});
 })();
 
+function hasGoogleLyrics(){return Boolean(lyricsLibrary?.source?.documentId);}
 function renderSource(){
-  $('google-update').textContent=source?(lyricsLibrary?'Update library':'Update from Google Sheets'):'Connect Google Sheets';
-  $('google-change').hidden=!source;
-  $('google-source').textContent=source?source.name+' · '+source.tab:'Connect your sheet once, then update here while online.';
-  $('lyrics-connect').textContent=lyricsLibrary?'Change lyrics document':'Connect lyrics document';
-  $('lyrics-update').hidden=!lyricsLibrary;
-  $('lyrics-source').textContent=lyricsLibrary?lyricsLibrary.source.name+' · '+LyricsLibrary.match(lyricsLibrary.entries,library).bySong.size+' songs with lyrics · Saved '+new Date(lyricsLibrary.importedAt).toLocaleDateString():'Optional: import all lyrics from one Google Doc. Import your chords first.';
+  $('google-change').textContent=source?'Change Google source':'Connect Google source';
+  $('google-update').textContent='Update from Google';$('google-update').hidden=!source;
+  $('google-source').textContent=source?'Google Sheets: '+source.name+' · '+source.tab:chordFileName?'File: '+chordFileName:library.length?'Saved on this device · no Google source connected':'No chords imported yet.';
+  $('lyrics-connect').textContent=hasGoogleLyrics()?'Change Google source':'Connect Google source';
+  $('lyrics-update').textContent='Update from Google';$('lyrics-update').hidden=!hasGoogleLyrics();
+  $('lyrics-source').textContent=lyricsLibrary?(hasGoogleLyrics()?'Google Docs: ':'File: ')+lyricsLibrary.source.name+' · '+LyricsLibrary.match(lyricsLibrary.entries,library).bySong.size+' song versions with lyrics · Saved '+new Date(lyricsLibrary.importedAt).toLocaleDateString():'No lyrics imported yet.';
+  $('google-update-all').hidden=!(source&&hasGoogleLyrics());
   const busy=syncBusy||$('confirm').open||$('lyrics-confirm').open;
-  for(const id of ['google-update','google-change','google-signin','lyrics-connect','lyrics-update','import'])$(id).disabled=!db||busy;
-  if(!library.length){$('lyrics-connect').disabled=true;$('lyrics-update').disabled=true;}
+  for(const id of ['google-update','google-change','google-signin','google-update-all','lyrics-connect','lyrics-update','lyrics-import','import'])$(id).disabled=!db||busy;
+  if(!library.length)for(const id of ['lyrics-connect','lyrics-update','lyrics-import'])$(id).disabled=true;
 }
 function chooseTab(sheets){if(!sheets.length)return Promise.reject(Error("This spreadsheet has no worksheets."));return new Promise(resolve=>{
   if(sheets.length===1){resolve(sheets[0].properties);return;}
@@ -127,7 +131,7 @@ function chooseTab(sheets){if(!sheets.length)return Promise.reject(Error("This s
   $('tabs').addEventListener('close',()=>resolve($('tabs').returnValue==='choose'?sheets.find(s=>String(s.properties.sheetId)===$('worksheet').value).properties:null),{once:true});
   $('tabs').returnValue='';$('tabs').showModal();
 });}
-function syncGoogle(change){
+function syncGoogle(change,includeLyrics=false){
   if(syncBusy||!db||$('confirm').open||$('lyrics-confirm').open)return;
   if(!navigator.onLine){note('Connect to the internet to update. Your saved songs are still available offline.');return;}
   if(!SheetsConnection.configured()){note('Google Sheets connection is being configured for this website. You can import a CSV in the meantime.');return;}
@@ -149,18 +153,14 @@ function syncGoogle(change){
       }
       note('Downloading your songs…');
       const result=await SheetsConnection.download(target);
-      if(change||!source){
-        pending=result.songs;pendingSource=result.source;
-        $('import-summary').textContent=`${pending.length} songs by ${new Set(pending.map(s=>s.artist)).size} artists from ${result.source.name} · ${result.source.tab}. Future updates will use this worksheet.`;
-        $('confirm').showModal();renderSource();
+      if(includeLyrics&&hasGoogleLyrics()){
+        note('Downloading your lyrics…');
+        const nextLyrics=await SheetsConnection.downloadLyrics(lyricsLibrary.source);
+        previewLyrics({songs:result.songs,source:result.source,chordFileName:null,lyricsLibrary:nextLyrics,importedAt:new Date().toISOString()});
       }else{
-        const value={songs:result.songs,source:result.source,lyricsLibrary,importedAt:new Date().toISOString()};
-        if(lyricsLibrary){
-          note('Downloading your lyrics…');value.lyricsLibrary=await SheetsConnection.downloadLyrics(lyricsLibrary.source);
-          previewLyrics(value);
-        }else{
-          await commitLibrary(value);note('Updated from Google Sheets and saved for offline use.');
-        }
+        pending=result.songs;pendingSource=result.source;pendingChordFileName=null;
+        $('import-summary').textContent=`${pending.length} songs by ${new Set(pending.map(s=>s.artist)).size} artists from ${result.source.name} · ${result.source.tab}. Future Google updates will use this worksheet. Your lyrics are kept.`;
+        $('confirm').showModal();renderSource();
       }
     }catch(e){note(e.message+' Your saved library has not changed.');}
     finally{syncBusy=false;renderSource();}
@@ -168,7 +168,8 @@ function syncGoogle(change){
 }
 $('google-update').addEventListener('click',()=>syncGoogle(false));
 $('google-change').addEventListener('click',()=>syncGoogle(true));
-window.addEventListener('online',()=>{if(SheetsConnection.configured())SheetsConnection.prepare().catch(()=>{});});
+$('google-update-all').addEventListener('click',()=>syncGoogle(false,true));
+window.addEventListener('online',()=>{if((source||hasGoogleLyrics())&&SheetsConnection.configured())SheetsConnection.prepare().catch(()=>{});});
 
 $('google-signin').addEventListener('click',()=>{
   if(syncBusy||!db||$('confirm').open||$('lyrics-confirm').open)return;
@@ -177,7 +178,7 @@ $('google-signin').addEventListener('click',()=>{
     note('Loading Google sign-in…');SheetsConnection.prepare().then(()=>note('Google is ready. Tap Sign in again to continue.')).catch(e=>note(e.message));return;
   }
   syncBusy=true;renderSource();$('import').disabled=true;
-  SheetsConnection.authorize(true).then(()=>note('Google sign-in refreshed. Now tap '+(source?'Update from Google Sheets.':'Connect Google Sheets.'))).catch(e=>note(e.message)).finally(()=>{syncBusy=false;renderSource();});
+  SheetsConnection.authorize(true).then(()=>note('Google sign-in refreshed. Choose Connect Google source or Update from Google in Settings.')).catch(e=>note(e.message)).finally(()=>{syncBusy=false;renderSource();});
 });
 window.addEventListener('pickeropened',()=>{$('picker-recovery').hidden=false;});
 window.addEventListener('pickerclosed',()=>{$('picker-recovery').hidden=true;});
@@ -187,7 +188,7 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v4')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v5')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
@@ -208,7 +209,7 @@ chordSize.addEventListener('input',()=>{applyChordSize(chordSize.value);try{loca
 // a song added to the Sheet later can match without importing its lyrics again.
 async function commitLibrary(value){
   await saveLibrary(value);
-  const preferred=$('artist').value;library=value.songs;source=value.source;lyricsLibrary=value.lyricsLibrary||null;
+  const preferred=$('artist').value;library=value.songs;source=value.source;chordFileName=value.chordFileName||null;lyricsLibrary=value.lyricsLibrary||null;
   renderLibrary(preferred);updated(value.importedAt);renderSource();
 }
 function previewLyrics(value){
@@ -235,12 +236,12 @@ function syncLyrics(change){
   (async()=>{
     try{
       await authorization;
-      const target=change||!lyricsLibrary?await SheetsConnection.pick('lyrics'):lyricsLibrary.source;
+      const target=change||!hasGoogleLyrics()?await SheetsConnection.pick('lyrics'):lyricsLibrary.source;
       if(!target)return;
       note('Downloading all lyrics…');
       const result=await SheetsConnection.downloadLyrics(target);
       const saved=await readSaved();
-      previewLyrics({songs:library,source,lyricsLibrary:result,importedAt:saved?.importedAt||new Date().toISOString()});
+      previewLyrics({songs:library,source,chordFileName,lyricsLibrary:result,importedAt:saved?.importedAt||new Date().toISOString()});
     }catch(e){note(e.message+' Your saved library has not changed.');}
     finally{syncBusy=false;renderSource();}
   })();
@@ -256,4 +257,30 @@ $('lyrics-save').addEventListener('click',async event=>{
 });
 $('lyrics-confirm').addEventListener('cancel',event=>{if(syncBusy)event.preventDefault();});
 $('lyrics-confirm').addEventListener('close',()=>{if(pendingLyrics)note('Update cancelled. Your saved library is unchanged.');pendingLyrics=null;renderSource();});
-$('confirm').addEventListener('close',()=>{pending=null;pendingSource=null;renderSource();});
+$('confirm').addEventListener('cancel',event=>{if(syncBusy)event.preventDefault();});
+$('confirm').addEventListener('close',()=>{if(pending)note('Update cancelled. Your saved library is unchanged.');pending=null;pendingSource=null;pendingChordFileName=null;renderSource();});
+
+function showPage(){
+  const settings=location.hash==='#settings';
+  $('settings-page').hidden=!settings;$('library-page').hidden=settings;
+  $('open-settings').hidden=settings;$('back-library').hidden=!settings;
+  document.title=settings?'Settings · Chordbook':'Chordbook';
+  window.scrollTo(0,0);
+  if(settings)$('settings-heading').focus();
+}
+$('open-settings').addEventListener('click',()=>{location.hash='settings';});
+$('welcome-settings').addEventListener('click',()=>{location.hash='settings';});
+$('back-library').addEventListener('click',()=>{location.hash='';});
+window.addEventListener('hashchange',showPage);showPage();
+$('lyrics-import').addEventListener('click',()=>$('lyrics-file').click());
+$('lyrics-file').addEventListener('change',async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  if(syncBusy||!db||!library.length||$('confirm').open||$('lyrics-confirm').open)return;
+  syncBusy=true;renderSource();
+  try{
+    note('Reading lyrics file…');
+    const result=await DocxLyrics.read(file),saved=await readSaved();
+    previewLyrics({songs:library,source,chordFileName,lyricsLibrary:result,importedAt:saved?.importedAt||new Date().toISOString()});
+  }catch(e){note(e.message+' Your saved library has not changed.');}
+  finally{syncBusy=false;renderSource();}
+});
