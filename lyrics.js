@@ -37,5 +37,19 @@ window.LyricsLibrary=(()=>{
     }
     return {bySong,unmatched,empty,ambiguous};
   }
-  return {normalize,parseDocument,match};
+  function catalog(songs,entries){
+    const result=[...songs],known=new Set(songs.flatMap(aliases));
+    for(const entry of entries||[]){
+      if(!entry.text.trim()||known.has(normalize(entry.heading)))continue;
+      // Prefer explicit separators, keeping hyphens within artist/song names.
+      const heading=entry.heading.trim();
+      const separator=/[ \t]+[—–][ \t]+/.exec(heading)||/[ \t]+\|[ \t]+/.exec(heading)||/[ \t]+-[ \t]+/.exec(heading)||/:[ \t]+/.exec(heading);
+      if(!separator)continue;
+      const artist=heading.slice(0,separator.index).trim(),song=heading.slice(separator.index+separator[0].length).trim();
+      if(!artist||!song)continue;
+      const item={artist,song,chords:'',key:''};result.push(item);for(const alias of aliases(item))known.add(alias);
+    }
+    return result;
+  }
+  return {normalize,parseDocument,match,catalog};
 })();

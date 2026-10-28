@@ -1,6 +1,6 @@
 'use strict';
 const PREFIX='chordbook:'+self.registration.scope+':';
-const VERSION='chordbook-public-v5';
+const VERSION='chordbook-public-v6';
 const CACHE=PREFIX+VERSION;
 const FILES=['./','./index.html','./style.css','./csv.js','./app.js','./lyrics.js','./jszip.min.js','./docx-lyrics.js','./google-config.js','./google-sheets.js','./seed.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./privacy.html','./template.csv'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES.map(file=>new Request(file,{cache:"reload"})))).then(()=>self.skipWaiting())));

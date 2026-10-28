@@ -4,11 +4,12 @@ const storageNamespace='chordbook:'+new URL('./',location.href).pathname;
 const order=new Intl.Collator('en',{sensitivity:'base',numeric:true});
 let library=window.STARTER_LIBRARY,db,pending=null,source=null,pendingSource=null,syncBusy=false,lyricsLibrary=null,pendingLyrics=null,chordFileName=null,pendingChordFileName=null; 
 function note(text){$('message').textContent=text;$('message').hidden=false;}
-function artists(){return [...new Set(library.map(s=>s.artist))].sort(order.compare);}
+function displayedSongs(){return LyricsLibrary.catalog(library,lyricsLibrary?.entries||[]);}
+function artists(){return [...new Set(displayedSongs().map(s=>s.artist))].sort(order.compare);}
 function renderLibrary(preferred){
-  const list=artists();$('welcome').hidden=library.length>0;$('artist').disabled=!list.length;document.querySelector('.reading-layout').hidden=!library.length;document.querySelector('.section-heading').hidden=!library.length;$('artist').replaceChildren(...list.map(name=>new Option(name,name)));
+  const visibleSongs=displayedSongs();const list=artists();$('welcome').hidden=visibleSongs.length>0;$('artist').disabled=!list.length;document.querySelector('.reading-layout').hidden=!visibleSongs.length;document.querySelector('.section-heading').hidden=!visibleSongs.length;$('artist').replaceChildren(...list.map(name=>new Option(name,name)));
   if(list.includes(preferred))$('artist').value=preferred;
-  $('library-count').textContent=`${list.length} ${list.length===1?'artist':'artists'} · ${library.length} ${library.length===1?'song':'songs'}`;
+  $('library-count').textContent=`${list.length} ${list.length===1?'artist':'artists'} · ${visibleSongs.length} ${visibleSongs.length===1?'song':'songs'}`;
   renderSongs();
 }
 function formatChords(element,text){
@@ -28,17 +29,20 @@ function formatChords(element,text){
 }
 function renderSongs(){
   const artist=$('artist').value;
-  const lyricMatches=LyricsLibrary.match(lyricsLibrary?.entries||[],library).bySong;
-  const songs=library.filter(s=>s.artist===artist).sort((a,b)=>order.compare(a.song,b.song));
+  const visibleSongs=displayedSongs();
+  const lyricMatches=LyricsLibrary.match(lyricsLibrary?.entries||[],visibleSongs).bySong;
+  const songs=visibleSongs.filter(s=>s.artist===artist).sort((a,b)=>order.compare(a.song,b.song));
   $('artist-heading').textContent=artist;$('song-count').textContent=`${songs.length} ${songs.length===1?'song':'songs'}`;
   $('songs').replaceChildren(...songs.map(s=>{
     const card=document.createElement('article'),title=document.createElement('h3'),chords=document.createElement('pre');
     title.textContent=s.song;formatChords(chords,s.chords);
     const heading=document.createElement('div');heading.className='song-heading';heading.append(title);
     if(s.key){const key=document.createElement('p');key.className='song-key';key.textContent='Key: '+s.key;heading.append(key);}
-    const text=lyricMatches.get(library.indexOf(s));
+    const text=lyricMatches.get(visibleSongs.indexOf(s));
     card.append(heading);
-    if(text){
+    if(text&&!String(s.chords||'').trim()){
+      const lyrics=document.createElement('pre');lyrics.className='lyrics-text';lyrics.textContent=text;card.append(lyrics);
+    }else if(text){
       const views=document.createElement('div');views.className='song-views';views.setAttribute('role','group');views.setAttribute('aria-label',s.song+' view');
       const chordButton=document.createElement('button'),lyricsButton=document.createElement('button'),lyrics=document.createElement('pre');
       chordButton.textContent='Chords';lyricsButton.textContent='Lyrics';lyrics.className='lyrics-text';lyrics.textContent=text;lyrics.hidden=true;
@@ -107,7 +111,7 @@ async function offlineSetup(){
 }
 (async()=>{
   renderLibrary();$('import').disabled=true;
-  try{db=await openDatabase();const saved=await readSaved();if(saved?.songs?.length){library=saved.songs;source=saved.source||null;lyricsLibrary=saved.lyricsLibrary||null;chordFileName=saved.chordFileName||null;renderLibrary();updated(saved.importedAt);}}
+  try{db=await openDatabase();const saved=await readSaved();if(Array.isArray(saved?.songs)){library=saved.songs;source=saved.source||null;lyricsLibrary=saved.lyricsLibrary||null;chordFileName=saved.chordFileName||null;renderLibrary();updated(saved.importedAt);}}
   catch(error){note('Saved library could not be opened. Imports are unavailable until device storage works.');}
   $('import').disabled=!db;renderSource();offlineSetup();if((source||hasGoogleLyrics())&&SheetsConnection.configured()&&navigator.onLine)SheetsConnection.prepare().catch(()=>{});
 })();
@@ -119,11 +123,10 @@ function renderSource(){
   $('google-source').textContent=source?'Google Sheets: '+source.name+' · '+source.tab:chordFileName?'File: '+chordFileName:library.length?'Saved on this device · no Google source connected':'No chords imported yet.';
   $('lyrics-connect').textContent=hasGoogleLyrics()?'Change Google source':'Connect Google source';
   $('lyrics-update').textContent='Update from Google';$('lyrics-update').hidden=!hasGoogleLyrics();
-  $('lyrics-source').textContent=lyricsLibrary?(hasGoogleLyrics()?'Google Docs: ':'File: ')+lyricsLibrary.source.name+' · '+LyricsLibrary.match(lyricsLibrary.entries,library).bySong.size+' song versions with lyrics · Saved '+new Date(lyricsLibrary.importedAt).toLocaleDateString():'No lyrics imported yet.';
+  $('lyrics-source').textContent=lyricsLibrary?(hasGoogleLyrics()?'Google Docs: ':'File: ')+lyricsLibrary.source.name+' · '+LyricsLibrary.match(lyricsLibrary.entries,displayedSongs()).bySong.size+' song versions with lyrics · Saved '+new Date(lyricsLibrary.importedAt).toLocaleDateString():'No lyrics imported yet.';
   $('google-update-all').hidden=!(source&&hasGoogleLyrics());
   const busy=syncBusy||$('confirm').open||$('lyrics-confirm').open;
   for(const id of ['google-update','google-change','google-signin','google-update-all','lyrics-connect','lyrics-update','lyrics-import','import'])$(id).disabled=!db||busy;
-  if(!library.length)for(const id of ['lyrics-connect','lyrics-update','lyrics-import'])$(id).disabled=true;
 }
 function chooseTab(sheets){if(!sheets.length)return Promise.reject(Error("This spreadsheet has no worksheets."));return new Promise(resolve=>{
   if(sheets.length===1){resolve(sheets[0].properties);return;}
@@ -188,22 +191,23 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v5')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v6')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
 }
 
-const chordSize=$('chord-size');
+let textSize=27;
 function applyChordSize(value){
-  const size=Math.max(16,Math.min(48,Number(value)||27));
-  document.documentElement.style.setProperty('--chord-size',size+'px');
-  chordSize.value=String(size);chordSize.setAttribute('aria-valuetext',size+' pixels');
-  $('chord-size-value').textContent=String(size);
+  textSize=Math.max(16,Math.min(48,Number(value)||27));
+  document.documentElement.style.setProperty('--chord-size',textSize+'px');
+  $('chord-size-value').textContent=String(textSize);
+  $('size-minus').disabled=textSize<=16;$('size-plus').disabled=textSize>=48;
 }
 try{applyChordSize(localStorage.getItem(storageNamespace+':font-size')||27);}catch(e){applyChordSize(27);}
-chordSize.addEventListener('input',()=>{applyChordSize(chordSize.value);try{localStorage.setItem(storageNamespace+':font-size',chordSize.value);}catch(e){}});
-
+function changeTextSize(delta){applyChordSize(textSize+delta);try{localStorage.setItem(storageNamespace+':font-size',textSize);}catch(e){}}
+$('size-minus').addEventListener('click',()=>changeTextSize(-1));
+$('size-plus').addEventListener('click',()=>changeTextSize(1));
 
 // Lyrics are stored beside the song library, preserving every document entry so
 // a song added to the Sheet later can match without importing its lyrics again.
@@ -213,19 +217,20 @@ async function commitLibrary(value){
   renderLibrary(preferred);updated(value.importedAt);renderSource();
 }
 function previewLyrics(value){
-  const report=LyricsLibrary.match(value.lyricsLibrary.entries,value.songs);
+  const visibleSongs=LyricsLibrary.catalog(value.songs,value.lyricsLibrary.entries);
+  const report=LyricsLibrary.match(value.lyricsLibrary.entries,visibleSongs);
   if(report.ambiguous.length)throw Error('Ambiguous lyrics matches: '+report.ambiguous.join('; ')+'. Use one lyrics heading per artist/song. Different keys can share that heading; check for conflicting artist/song names.');
-  if(!report.bySong.size)throw Error('No lyrics matched your song library. Use Heading 1 lines in the form Artist — Song, matching the Sheet, with lyrics beneath. Your saved library is unchanged.');
+  if(!report.bySong.size)throw Error('No usable lyrics were found. Use Heading 1 lines in the form Artist — Song, with lyrics beneath. Your saved library is unchanged.');
   pendingLyrics=value;
-  $('lyrics-summary').textContent=value.lyricsLibrary.source.name+': '+report.bySong.size+' of '+value.songs.length+' songs have matching lyrics. All will be available offline.';
-  const warnings=[...report.unmatched.map(h=>'No matching song: '+h),...report.empty.map(h=>'No lyrics under heading: '+h)];
-  const old=LyricsLibrary.match(lyricsLibrary?.entries||[],value.songs).bySong;
-  for(const [i] of old)if(!report.bySong.has(i))warnings.push('Saved lyrics will be removed: '+value.songs[i].artist+' — '+value.songs[i].song);
+  $('lyrics-summary').textContent=value.lyricsLibrary.source.name+': '+report.bySong.size+' of '+visibleSongs.length+' song versions have lyrics. All will be available offline.';
+  const warnings=[...report.unmatched.map(h=>'Could not read artist/song from heading: '+h),...report.empty.map(h=>'No lyrics under heading: '+h)];
+  const remaining=new Set(value.lyricsLibrary.entries.filter(e=>e.text.trim()).map(e=>LyricsLibrary.normalize(e.heading)));
+  for(const entry of lyricsLibrary?.entries||[])if(entry.text.trim()&&!remaining.has(LyricsLibrary.normalize(entry.heading)))warnings.push('Saved lyrics will be removed: '+entry.heading);
   $('lyrics-warnings').replaceChildren(...warnings.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
   $('lyrics-confirm').showModal();renderSource();
 }
 function syncLyrics(change){
-  if(syncBusy||!db||!library.length||$('confirm').open||$('lyrics-confirm').open)return;
+  if(syncBusy||!db||$('confirm').open||$('lyrics-confirm').open)return;
   if(!navigator.onLine){note('Connect to the internet to update lyrics. Your saved lyrics are available offline.');return;}
   if(!SheetsConnection.configured()){note('Google connection needs its one-time setup before importing lyrics.');return;}
   if(!SheetsConnection.ready()){
@@ -275,7 +280,7 @@ window.addEventListener('hashchange',showPage);showPage();
 $('lyrics-import').addEventListener('click',()=>$('lyrics-file').click());
 $('lyrics-file').addEventListener('change',async event=>{
   const file=event.target.files[0];event.target.value='';if(!file)return;
-  if(syncBusy||!db||!library.length||$('confirm').open||$('lyrics-confirm').open)return;
+  if(syncBusy||!db||$('confirm').open||$('lyrics-confirm').open)return;
   syncBusy=true;renderSource();
   try{
     note('Reading lyrics file…');
