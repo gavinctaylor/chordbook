@@ -29,6 +29,7 @@ function formatChords(element,text){
 }
 function renderSongs(){
   const artist=$('artist').value;
+  $('artist-selected').textContent=artist||'Choose an artist';$('artist-open').disabled=!artist;
   const visibleSongs=displayedSongs();
   const lyricMatches=LyricsLibrary.match(lyricsLibrary?.entries||[],visibleSongs).bySong;
   const songs=visibleSongs.filter(s=>s.artist===artist).sort((a,b)=>order.compare(a.song,b.song));
@@ -191,7 +192,7 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v6')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v7')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
@@ -289,3 +290,19 @@ $('lyrics-file').addEventListener('change',async event=>{
   }catch(e){note(e.message+' Your saved library has not changed.');}
   finally{syncBusy=false;renderSource();}
 });
+
+// An in-page chooser keeps the opened list readable on iPad as well as desktop.
+$('artist-open').addEventListener('click',()=>{
+  const current=$('artist').value;
+  $('artist-options').replaceChildren(...artists().map(name=>{
+    const button=document.createElement('button');button.type='button';button.className='artist-option';button.textContent=name;
+    button.setAttribute('aria-pressed',String(name===current));
+    button.addEventListener('click',()=>{$('artist').value=name;renderSongs();$('artist-dialog').close();});
+    return button;
+  }));
+  $('artist-dialog').showModal();
+  const selected=$('artist-options').querySelector('[aria-pressed="true"]');
+  if(selected){selected.focus();selected.scrollIntoView({block:'nearest'});}
+});
+$('artist-close').addEventListener('click',()=>$('artist-dialog').close());
+$('artist-dialog').addEventListener('close',()=>$('artist-open').focus());
