@@ -1,0 +1,58 @@
+CHORDBOOK VERSION 10 — SETLISTS AND PERFORMANCE
+
+Upload these seven replacement/new files into the same GitHub folder as your
+existing index.html, replacing files of the same name:
+  index.html
+  app.js
+  style.css
+  sw.js
+  privacy.html
+  setlist-model.js (new)
+  setlists.js (new)
+Keep all other existing files. This update assumes version 9 (Highlights).
+No Google settings or permissions need changing.
+
+After GitHub Pages finishes updating, open Chordbook online. Reload and use
+“Load updated app” if offered. Check the footer says Public version 10.
+Wait for offline readiness before disconnecting. Do not clear website data
+or delete your installed app to update; that can remove saved libraries/lists.
+
+SETLISTS
+Choose Setlists, create a named list, then Add songs. Search by artist, title
+or key. Different keys can be added independently; a song can appear twice.
+Drag the dotted handle to change the order, or use Up/Down. Rename and Delete
+apply to the selected list. Removing a song from a list does not delete it
+from the library.
+
+Lists are stored on this device/browser, separately from library imports.
+They do not sync between devices. Clearing website data removes them.
+A song reference matches artist + title + key. Reimporting edited chords
+keeps that reference. If the song disappears or its version becomes ambiguous,
+remove it from the list and add the intended version again.
+
+PERFORM
+Choose Perform, a setlist, and Lyrics or Chords, then Start performance.
+The app uses full-screen where supported and otherwise fills its browser
+window. On iPad, launching from the Home Screen avoids Safari browser chrome.
+If the preferred content is absent, the other available view is shown with
+a notice. Highlight colours and chord section formatting are retained.
+
+Swipe left / Right arrow / Next: next song.
+Swipe right / Left arrow / Previous: previous song.
+Pair the K24-01 in iPad Bluetooth settings and set it to send Left/Right
+keyboard arrows. Any pedal sending these same keys uses the same controls.
+Held/repeated key events are ignored. The setlist stops at either end,
+without wrapping. Vertical scrolling is available for long songs.
+Use + / − for text size; Exit returns to the performance setup.
+
+PLEASE CHECK ON YOUR IPAD
+1. Add two versions/keys, rename and drag-sort a list, then reopen the app.
+2. Start performance and check lyrics/chords, highlights and text size.
+3. Test both swipe directions and both pedal buttons, including list ends.
+4. After offline readiness, disconnect and reopen to check songs and lists.
+
+CHECKS COMPLETED
+Focused automated checks cover syntax, HTML control references, list changes,
+version/key matching, failure-safe saves, independent storage, navigation,
+swipe decisions and unavailable-song handling. Physical pedal, Safari
+full-screen and touch behaviour require the device checks above.

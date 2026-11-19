@@ -11,6 +11,7 @@ function renderLibrary(preferred){
   if(list.includes(preferred))$('artist').value=preferred;
   $('library-count').textContent=`${list.length} ${list.length===1?'artist':'artists'} · ${visibleSongs.length} ${visibleSongs.length===1?'song':'songs'}`;
   renderSongs();
+  window.ChordbookSetlists?.refresh();
 }
 function formatChords(element,text){
   // Recognize section labels only at the start of a line, never chord names.
@@ -193,7 +194,7 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v9')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v10')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
@@ -268,12 +269,13 @@ $('confirm').addEventListener('cancel',event=>{if(syncBusy)event.preventDefault(
 $('confirm').addEventListener('close',()=>{if(pending)note('Update cancelled. Your saved library is unchanged.');pending=null;pendingSource=null;pendingChordFileName=null;renderSource();});
 
 function showPage(){
-  const settings=location.hash==='#settings';
-  $('settings-page').hidden=!settings;$('library-page').hidden=settings;
-  $('open-settings').hidden=settings;$('back-library').hidden=!settings;
-  document.title=settings?'Settings · Chordbook':'Chordbook';
+  const requested=location.hash.slice(1),page=['settings','setlists','perform'].includes(requested)?requested:'library';
+  for(const name of ['settings','library','setlists','perform'])$(name+'-page').hidden=name!==page;
+  $('open-settings').hidden=page==='settings';$('back-library').hidden=page!=='settings';
+  for(const link of document.querySelectorAll('[data-mode]')){if(link.dataset.mode===page)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');}
+  document.title=page==='library'?'Chordbook':page[0].toUpperCase()+page.slice(1)+' · Chordbook';
   window.scrollTo(0,0);
-  if(settings)$('settings-heading').focus();
+  const heading=$(page==='perform'?'perform-heading':page+'-heading');if(page!=='library')heading?.focus();
 }
 $('open-settings').addEventListener('click',()=>{location.hash='settings';});
 $('welcome-settings').addEventListener('click',()=>{location.hash='settings';});

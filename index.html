@@ -5,11 +5,12 @@
 <meta name="theme-color" content="#121921"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Chordbook">
 <title>Chordbook</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121921'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Arial' font-size='44' fill='%237de1c2'%3E♯%3C/text%3E%3C/svg%3E">
-<script src="themes.js"></script><link rel="stylesheet" href="style.css"><script src="seed.js" defer></script><script src="csv.js" defer></script><script src="google-config.js" defer></script><script src="google-sheets.js" defer></script><script src="lyrics.js" defer></script><script src="jszip.min.js" defer></script><script src="docx-lyrics.js" defer></script><script src="app.js" defer></script>
+<script src="themes.js"></script><link rel="stylesheet" href="style.css"><script src="seed.js" defer></script><script src="csv.js" defer></script><script src="google-config.js" defer></script><script src="google-sheets.js" defer></script><script src="lyrics.js" defer></script><script src="jszip.min.js" defer></script><script src="docx-lyrics.js" defer></script><script src="app.js" defer></script><script src="setlist-model.js" defer></script><script src="setlists.js" defer></script>
 </head>
 <body>
 <div class="app">
 <header><div class="brand"><span class="mark" aria-hidden="true">♯</span><h1>Chordbook</h1></div><button id="open-settings" class="secondary">Settings</button><button id="back-library" class="secondary" hidden>Back to songs</button></header>
+<nav class="mode-nav" aria-label="App mode"><a href="#" data-mode="library">Rehearsal</a><a href="#setlists" data-mode="setlists">Setlists</a><a href="#perform" data-mode="perform">Perform</a></nav>
 <p id="message" role="status" hidden></p>
 <aside id="picker-recovery" hidden><span>Google chooser stuck? Close it, then use Sign in again. If the cookie error persists, try opening Chordbook in Safari.</span><button id="close-picker">Close Google chooser</button></aside><div id="app-update" hidden><p>A new app version is ready. Your saved songs will be kept.</p><button id="reload-app">Load updated app</button></div><main>
 <section id="settings-page" aria-labelledby="settings-heading" hidden>
@@ -28,12 +29,33 @@
 <section id="welcome" class="welcome"><h2>Your songs, ready to play.</h2><p>Open Settings to import your chords and lyrics from files or Google. Your library is saved in this browser for offline use.</p><p>Use the headings <strong>Artist · Song · Key · Chords</strong>, with one song per row. Key is optional.</p><button id="welcome-settings">Open Settings</button></section><section class="picker" aria-label="Choose artist"><div><label for="artist-open">ARTIST</label><button id="artist-open" class="artist-select" type="button" aria-haspopup="dialog" aria-controls="artist-dialog" disabled><span id="artist-selected">Choose an artist</span><span aria-hidden="true">▾</span></button><select id="artist" hidden aria-hidden="true" tabindex="-1"></select></div><p id="library-count"></p></section>
 <div class="section-heading"><h2 id="artist-heading"></h2><span id="song-count"></span></div>
 <div class="reading-layout"><div id="songs"></div><aside class="size-control" aria-label="Chords and lyrics text size"><span class="size-label">Text<br>size</span><button id="size-plus" type="button" aria-label="Increase text size">+</button><output id="chord-size-value" aria-live="polite" aria-label="Text size in pixels">27</output><button id="size-minus" type="button" aria-label="Decrease text size">−</button></aside></div>
-</section></main>
-<footer><span id="offline" role="status">Preparing offline access…</span><span id="updated">No library imported</span><span>Public version 9 · Highlights</span><a href="privacy.html">Privacy</a></footer>
+</section>
+<section id="setlists-page" hidden aria-labelledby="setlists-heading">
+<h2 id="setlists-heading" tabindex="-1">Setlists</h2><p>Create an order for your songs. Lists are saved offline on this device.</p>
+<div class="settings-actions"><button id="setlist-new" disabled>New setlist</button></div>
+<label for="setlist-select">Setlist</label><select id="setlist-select" disabled></select>
+<p id="setlist-status" role="status">Opening saved setlists…</p><p id="setlist-empty">Create your first setlist, then add songs from your library.</p>
+<div id="setlist-editor" hidden><div class="section-heading"><h3 id="setlist-title"></h3><span id="setlist-count"></span></div>
+<div class="settings-actions"><button id="setlist-add" disabled>Add songs</button><button id="setlist-rename" class="secondary" disabled>Rename</button><button id="setlist-delete" class="secondary" disabled>Delete setlist</button></div>
+<p>Drag the dotted handle to reorder, or use Up and Down. You can add a song more than once.</p><ol id="setlist-items" aria-label="Songs in setlist"></ol></div></section>
+<section id="perform-page" hidden aria-labelledby="perform-heading"><h2 id="perform-heading" tabindex="-1">Perform</h2><p>One song at a time, in your chosen order.</p>
+<label for="performance-setlist">Setlist</label><select id="performance-setlist" disabled></select>
+<label for="performance-view">Preferred view</label><select id="performance-view"><option value="lyrics">Lyrics</option><option value="chords">Chords</option></select>
+<p id="performance-readiness" role="status"></p><button id="performance-start" disabled>Start performance</button>
+<p>Pair your pedal with the iPad and select its Left/Right keyboard mode. Right advances; Left goes back. Long songs still scroll vertically.</p></section></main>
+<footer><span id="offline" role="status">Preparing offline access…</span><span id="updated">No library imported</span><span>Public version 10 · Setlists</span><a href="privacy.html">Privacy</a></footer>
 
 </div>
 <dialog id="confirm"><form method="dialog"><p class="eyebrow">UPDATE LIBRARY</p><h2>Replace your song library?</h2><p id="import-summary"></p><p>The imported sheet replaces every artist and song currently saved on this device. Keep your original sheet as your backup.</p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button id="replace" value="replace">Replace library</button></div></form></dialog>
 <dialog id="tabs"><form method="dialog"><h2>Choose a worksheet</h2><p>Select the tab containing Artist, Song and Chords.</p><label for="worksheet">Worksheet</label><select id="worksheet"></select><div class="actions"><button value="cancel" class="secondary">Cancel</button><button value="choose">Use worksheet</button></div></form></dialog>
 <dialog id="lyrics-confirm"><form method="dialog"><p class="eyebrow">IMPORT LYRICS</p><h2>Review library update</h2><p id="lyrics-summary"></p><ul id="lyrics-warnings"></ul><p>This saves a fresh copy of the whole lyrics document. Lyrics removed from the document will also be removed here. Lyrics without matching chords appear as lyrics-only songs.</p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button id="lyrics-save" value="save">Save update</button></div></form></dialog>
 <dialog id="artist-dialog" aria-labelledby="artist-dialog-title"><div class="artist-dialog-heading"><h2 id="artist-dialog-title">Choose an artist</h2><button id="artist-close" type="button" class="secondary">Close</button></div><div id="artist-options" class="artist-options"></div></dialog>
+<dialog id="set-name-dialog" aria-labelledby="set-name-title"><form id="set-name-form" method="dialog"><h2 id="set-name-title">New setlist</h2><label for="set-name-input">Name</label><input id="set-name-input" maxlength="100" autocomplete="off"><p id="set-name-error" role="alert"></p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button value="save">Save</button></div></form></dialog>
+<dialog id="set-delete-dialog" aria-labelledby="set-delete-title"><form method="dialog"><h2 id="set-delete-title">Delete setlist?</h2><p id="set-delete-name"></p><p>This removes the list from this device. Your songs remain in the library.</p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button id="set-delete-confirm">Delete</button></div></form></dialog>
+<dialog id="set-add-dialog" aria-labelledby="set-add-title"><div class="artist-dialog-heading"><h2 id="set-add-title">Add songs</h2><button id="set-add-close" class="secondary">Done</button></div><label for="set-song-search">Search artist, song or key</label><input id="set-song-search" type="search" autocomplete="off"><p id="set-add-status" role="status"></p><p id="set-search-empty" hidden>No matching songs. Import chords or lyrics in Settings.</p><div id="set-song-results"></div></dialog>
+<section id="performance-stage" tabindex="-1" aria-label="Performance" hidden>
+<div class="performance-top"><div><p id="performance-position"></p><h2 id="performance-title"></h2><p id="performance-artist"></p></div><button id="performance-exit" class="secondary">Exit</button></div>
+<div class="performance-tools song-views"><button id="performance-chords" class="secondary">Chords</button><button id="performance-lyrics" class="secondary">Lyrics</button><button id="performance-smaller" class="secondary" aria-label="Decrease text size">−</button><button id="performance-larger" class="secondary" aria-label="Increase text size">+</button></div>
+<p id="performance-notice" role="status"></p><div id="performance-reader"><pre id="performance-content"></pre></div>
+<div class="performance-bottom"><button id="performance-prev" class="secondary">← Previous</button><span id="performance-next-label"></span><button id="performance-next">Next →</button></div></section>
 </body></html>
