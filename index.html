@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#121921"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Chordbook">
 <title>Chordbook</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23121921'/%3E%3Ctext x='32' y='46' text-anchor='middle' font-family='Arial' font-size='44' fill='%237de1c2'%3E♯%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css"><script src="seed.js" defer></script><script src="csv.js" defer></script><script src="google-config.js" defer></script><script src="google-sheets.js" defer></script><script src="lyrics.js" defer></script><script src="jszip.min.js" defer></script><script src="docx-lyrics.js" defer></script><script src="app.js" defer></script>
+<script src="themes.js"></script><link rel="stylesheet" href="style.css"><script src="seed.js" defer></script><script src="csv.js" defer></script><script src="google-config.js" defer></script><script src="google-sheets.js" defer></script><script src="lyrics.js" defer></script><script src="jszip.min.js" defer></script><script src="docx-lyrics.js" defer></script><script src="app.js" defer></script>
 </head>
 <body>
 <div class="app">
@@ -15,6 +15,7 @@
 <section id="settings-page" aria-labelledby="settings-heading" hidden>
 <h2 id="settings-heading" tabindex="-1">Settings</h2>
 <p class="settings-intro">Import a file from your device, or connect a Google source. Everything you save is available offline.</p>
+<section class="settings-card" aria-labelledby="appearance-heading"><h3 id="appearance-heading">Appearance</h3><label for="colour-scheme">Colour scheme</label><select id="colour-scheme"></select><p>Saved on this device and available offline.</p></section>
 <section class="settings-card" aria-labelledby="chords-settings-heading"><h3 id="chords-settings-heading">Chords</h3><p id="google-source"></p>
 <div class="settings-actions"><button id="import">Import file (.csv)</button><button id="google-change" class="secondary">Connect Google source</button><button id="google-update" class="secondary" hidden>Update from Google</button></div><input type="file" id="file" accept=".csv,text/csv" hidden>
 <p>Use Artist, Song, Key and Chords columns. Key is optional. To update a file-based library, import the revised file.</p><a href="template.csv" download>Download a blank chords template</a></section>
@@ -28,7 +29,7 @@
 <div class="section-heading"><h2 id="artist-heading"></h2><span id="song-count"></span></div>
 <div class="reading-layout"><div id="songs"></div><aside class="size-control" aria-label="Chords and lyrics text size"><span class="size-label">Text<br>size</span><button id="size-plus" type="button" aria-label="Increase text size">+</button><output id="chord-size-value" aria-live="polite" aria-label="Text size in pixels">27</output><button id="size-minus" type="button" aria-label="Decrease text size">−</button></aside></div>
 </section></main>
-<footer><span id="offline" role="status">Preparing offline access…</span><span id="updated">No library imported</span><span>Public version 7 · Settings</span><a href="privacy.html">Privacy</a></footer>
+<footer><span id="offline" role="status">Preparing offline access…</span><span id="updated">No library imported</span><span>Public version 8 · Colours</span><a href="privacy.html">Privacy</a></footer>
 
 </div>
 <dialog id="confirm"><form method="dialog"><p class="eyebrow">UPDATE LIBRARY</p><h2>Replace your song library?</h2><p id="import-summary"></p><p>The imported sheet replaces every artist and song currently saved on this device. Keep your original sheet as your backup.</p><div class="actions"><button value="cancel" class="secondary">Cancel</button><button id="replace" value="replace">Replace library</button></div></form></dialog>
