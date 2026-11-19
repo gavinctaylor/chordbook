@@ -26,20 +26,37 @@ window.DocxLyrics=(()=>{
       if(level)return level==='0';
       return headingStyle(attr(child(style,'basedOn'),'val'),seen);
     }
-    function text(node){
-      if(node.nodeType!==1)return '';
-      if(['del','moveFrom','txbxContent','instrText'].includes(node.localName))return '';
-      if(node.localName==='t')return node.textContent;
-      if(node.localName==='br'||node.localName==='cr')return '\n';
-      if(node.localName==='tab')return '\t';
-      return Array.from(node.childNodes||[]).map(text).join('');
+    const named={black:'000000',blue:'0000ff',cyan:'00ffff',green:'00ff00',magenta:'ff00ff',red:'ff0000',yellow:'ffff00',white:'ffffff',darkBlue:'000080',darkCyan:'008080',darkGreen:'008000',darkMagenta:'800080',darkRed:'800000',darkYellow:'808000',darkGray:'808080',lightGray:'c0c0c0'};
+    function properties(rPr){
+      const result={},highlight=child(rPr,'highlight'),shading=child(rPr,'shd');
+      if(highlight)result.highlight=named[attr(highlight,'val')]||null;
+      if(shading){const fill=attr(shading,'fill');result.shading=/^[0-9a-f]{6}$/i.test(fill)?fill.toLowerCase():null;}
+      return result;
+    }
+    function styleProperties(id,seen=new Set()){
+      if(!id||seen.has(id))return {};seen.add(id);const style=styles.get(id);
+      return {...styleProperties(attr(child(style,'basedOn'),'val'),seen),...properties(child(style,'rPr'))};
+    }
+    function runs(node,inherited={}){
+      if(node.nodeType!==1||['del','moveFrom','txbxContent','instrText','rPr','pPr'].includes(node.localName))return [];
+      let format=inherited;
+      if(node.localName==='r'){
+        const rPr=child(node,'rPr');format={...inherited,...styleProperties(attr(child(rPr,'rStyle'),'val')),...properties(rPr)};
+      }
+      const value=node.localName==='t'?node.textContent:node.localName==='br'||node.localName==='cr'?'\n':node.localName==='tab'?'\t':null;
+      if(value!==null){
+        const colour=format.highlight||format.shading,style={};
+        if(colour)style.backgroundColor={color:{rgbColor:{red:parseInt(colour.slice(0,2),16)/255,green:parseInt(colour.slice(2,4),16)/255,blue:parseInt(colour.slice(4,6),16)/255}}};
+        return [{textRun:{content:value,textStyle:style}}];
+      }
+      return Array.from(node.childNodes||[]).flatMap(n=>runs(n,format));
     }
     const doc=xml(documentText),body=elements(doc,'body')[0];
     if(!body)throw Error('This file is not a supported Word document.');
     return elements(body,'p').filter(p=>{for(let n=p.parentNode;n&&n!==body;n=n.parentNode)if(['del','moveFrom','txbxContent'].includes(n.localName))return false;return true;}).map(p=>{
       const props=child(p,'pPr'),level=attr(child(props,'outlineLvl'),'val');
       const heading=level?level==='0':headingStyle(attr(child(props,'pStyle'),'val'));
-      return {paragraph:{paragraphStyle:{namedStyleType:heading?'HEADING_1':'NORMAL_TEXT'},elements:[{textRun:{content:text(p)+'\n'}}]}};
+      return {paragraph:{paragraphStyle:{namedStyleType:heading?'HEADING_1':'NORMAL_TEXT'},elements:[...runs(p,styleProperties(attr(child(props,'pStyle'),'val'))),{textRun:{content:'\n'}}]}};
     });
   }
   async function read(file){

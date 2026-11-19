@@ -31,7 +31,8 @@ function renderSongs(){
   const artist=$('artist').value;
   $('artist-selected').textContent=artist||'Choose an artist';$('artist-open').disabled=!artist;
   const visibleSongs=displayedSongs();
-  const lyricMatches=LyricsLibrary.match(lyricsLibrary?.entries||[],visibleSongs).bySong;
+  const lyricMatches=LyricsLibrary.match(lyricsLibrary?.entries||[],visibleSongs).entriesBySong;
+  const highlightColours=LyricsLibrary.highlightColours(lyricsLibrary?.entries||[]);
   const songs=visibleSongs.filter(s=>s.artist===artist).sort((a,b)=>order.compare(a.song,b.song));
   $('artist-heading').textContent=artist;$('song-count').textContent=`${songs.length} ${songs.length===1?'song':'songs'}`;
   $('songs').replaceChildren(...songs.map(s=>{
@@ -39,14 +40,14 @@ function renderSongs(){
     title.textContent=s.song;formatChords(chords,s.chords);
     const heading=document.createElement('div');heading.className='song-heading';heading.append(title);
     if(s.key){const key=document.createElement('p');key.className='song-key';key.textContent='Key: '+s.key;heading.append(key);}
-    const text=lyricMatches.get(visibleSongs.indexOf(s));
+    const lyricEntry=lyricMatches.get(visibleSongs.indexOf(s)),text=lyricEntry?.text;
     card.append(heading);
     if(text&&!String(s.chords||'').trim()){
-      const lyrics=document.createElement('pre');lyrics.className='lyrics-text';lyrics.textContent=text;card.append(lyrics);
+      const lyrics=document.createElement('pre');lyrics.className='lyrics-text';LyricsLibrary.render(lyrics,lyricEntry,highlightColours);card.append(lyrics);
     }else if(text){
       const views=document.createElement('div');views.className='song-views';views.setAttribute('role','group');views.setAttribute('aria-label',s.song+' view');
       const chordButton=document.createElement('button'),lyricsButton=document.createElement('button'),lyrics=document.createElement('pre');
-      chordButton.textContent='Chords';lyricsButton.textContent='Lyrics';lyrics.className='lyrics-text';lyrics.textContent=text;lyrics.hidden=true;
+      chordButton.textContent='Chords';lyricsButton.textContent='Lyrics';lyrics.className='lyrics-text';LyricsLibrary.render(lyrics,lyricEntry,highlightColours);lyrics.hidden=true;
       [chordButton,lyricsButton].forEach(b=>{b.type='button';b.className='secondary';});
       chordButton.setAttribute('aria-pressed','true');lyricsButton.setAttribute('aria-pressed','false');
       function showLyrics(show){chords.hidden=show;lyrics.hidden=!show;chordButton.setAttribute('aria-pressed',String(!show));lyricsButton.setAttribute('aria-pressed',String(show));}
@@ -192,7 +193,7 @@ $('reload-app').addEventListener('click',()=>location.reload());
 if('serviceWorker' in navigator){
   const checkVersion=()=>{
     const controller=navigator.serviceWorker.controller;if(!controller)return;
-    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v8')$('app-update').hidden=false;channel.port1.close();};
+    const channel=new MessageChannel();channel.port1.onmessage=e=>{if(e.data.version&&e.data.version!=='chordbook-public-v9')$('app-update').hidden=false;channel.port1.close();};
     controller.postMessage({type:'CHECK_OFFLINE'},[channel.port2]);
   };
   navigator.serviceWorker.addEventListener('controllerchange',checkVersion);
